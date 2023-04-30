@@ -33,12 +33,14 @@ int main() {
 	addr.sin_family = AF_INET;   // семейство протоколов, для интерент протоколов: AF_INET
 
 	Connection = socket(AF_INET, SOCK_STREAM, NULL);
-	if (connect(Connection, (SOCKADDR*)&addr, sizeof(addr)) != 0){ //проверка на подключение к серверу 
+	if (connect(Connection, (SOCKADDR*)&addr, sizeof(addr)) == SOCKET_ERROR){ //проверка на подключение к серверу 
 		cout << "Error: failed connect to server.\n";
+		closesocket(Connection);
+		WSACleanup();
 		return 1;
 	}
 	
-	cout << "Connected!\n"; //подключился
+	cout << "Connected!\n"; //подключился	
 	/* // уже не надо, так как это делает void ClientHandler, запущенная в новом потоке 
 	char msg[256];
 	recv(Connection, msg, sizeof(msg), NULL);
@@ -48,12 +50,16 @@ int main() {
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, NULL, NULL, NULL);
 
 	char msgl[256];
+	string message;
 	while (true) {
 		cin.getline(msgl, sizeof(msgl));			
 		send(Connection, msgl, sizeof(msgl), NULL);
 		Sleep(3);
 	}
 	
+	closesocket(Connection);
+	WSACleanup();
+
 	system("pause");
 	return 0;
 }

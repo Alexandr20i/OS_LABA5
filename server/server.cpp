@@ -1,4 +1,5 @@
 ﻿#include <iostream>
+#include <string>
 #include <winsock2.h>
 
 #pragma warning(disable: 4996)
@@ -56,9 +57,12 @@ int main() {
 			cout << "Client " << i << " connected!" << endl;
 			// дальше идёт межсетевое взаимодействие
 
+			
+			string m = "client " + to_string(i) + " is connected";
+			char msg[256] = "Client:  \n";
+			strcpy(msg, m.c_str());
 
-			char msg[256] = "From server! \n";
-			send(newConnection, msg, sizeof(msg), NULL); // отправка клиенту
+			send(newConnection, msg, sizeof(msg), NULL); // отправка клиенту номер клиента 
 
 			Connections[i] = newConnection;
 			++Counter;
