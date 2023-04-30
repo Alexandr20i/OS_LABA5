@@ -1,5 +1,6 @@
 ﻿#include <iostream>
 #include <string>
+#include <thread>
 #include <winsock2.h>
 
 #pragma warning(disable: 4996)
@@ -7,18 +8,30 @@
 
 using namespace std;
 
-SOCKET Connections[100]; // массив сокетов 
+HANDLE hMutex;
+
+SOCKET Connections[10]; // массив сокетов 
 int Counter = 0; // иднекс массива(сокета/клиента)
+
+// Client 1: отправляет данные 
+// Client 2: получает результат
 
 void ClientHandler(int index) {
 	char msg[256];
 	while (true) {
-		recv(Connections[index], msg, sizeof(msg), NULL); // принимает сообщение клиента
-		for (int i = 0; i < Counter; ++i) {
+		if (recv(Connections[index], msg, sizeof(msg), NULL)) { // принимает сообщение клиента
+			cout << "from " << index << " : "<< msg  << endl;
+		}
+		else {
+			return;
+		}
+		/*
+		for (int i = 1; i <= Counter; ++i) {
 			if (i == index)
 				continue;
+			Sleep(10);
 			send(Connections[i], msg, sizeof(msg), NULL); // отправляет клиенту 
-		}
+		}*/
 	}
 }
 
@@ -42,10 +55,13 @@ int main() {
 		closesocket(slisten);
 		WSACleanup();
 	}
-	int c = 3;
-	listen(slisten, c); // прослушивание, сколько запросов ожидается, (остальные получат ошибку)
+	int c = 10; // кол-во клиентов, которые могут подключиться
+	listen(slisten, SOMAXCONN); // прослушивание, сколько запросов ожидается, (остальные получат ошибку)
 
 	cout << "Waiting for client connection..." << endl;
+
+	hMutex = CreateMutex(NULL, FALSE, NULL);//создание мьютекса
+	HANDLE threads[100]; //инициализуем потоки
 
 	SOCKET newConnection;
 	//newConnection = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr); // 
@@ -57,18 +73,31 @@ int main() {
 			cout << "Client " << i << " connected!" << endl;
 			// дальше идёт межсетевое взаимодействие
 
-			
 			string m = "client " + to_string(i) + " is connected";
 			char msg[256] = "Client:  \n";
 			strcpy(msg, m.c_str());
 
-			send(newConnection, msg, sizeof(msg), NULL); // отправка клиенту номер клиента 
+			send(newConnection, msg, sizeof(msg), NULL); // отправка клиенту его номер
 
 			Connections[i] = newConnection;
-			++Counter;
-			CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE) ClientHandler, (LPVOID)(i), NULL, NULL); // создаём новый поток, в котором будет выполняться функция ClientHandler
+			++Counter; 
+			Sleep(3);
+			//CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE) ClientHandler, (LPVOID)(i), NULL, NULL); 
+			threads[i] = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(i), NULL, NULL); // создаём новый поток, в котором будет выполняться функция ClientHandler
 		}
 	}
+
+	WaitForMultipleObjects(c, threads, TRUE, INFINITE); //ожидание заверешения работы всех потоков(клиентов)
+	for (int i = 1; i <= Counter; ++i) {  //закрытие потоков
+		CloseHandle(threads[i]);
+		cout << "The threard " << i << " is closed" << endl;
+	}
+
+	std::cout << "The server is closed to all streams!" << std::endl;
+	CloseHandle(hMutex); //закрытие мьютексов
+	closesocket(slisten);// и прослушивающего сокета
+	WSACleanup(); //освобождение использованных ресурсов
+
 	system("pause");
 	return 0;
 }
