@@ -1,6 +1,7 @@
 ﻿#include <iostream>
 #include <winsock2.h>
 #include <mutex>
+#include <string>
 
 using namespace std;
 
@@ -8,28 +9,56 @@ using namespace std;
 #pragma comment(lib, "ws2_32.lib") // Для работы с сокетами
 
 SOCKET Connection;
-const int MAX_CONNECTION = 2; //константа для макс количества клиентов
-SOCKET Connections[MAX_CONNECTION]; //сокеты
-HANDLE hMutex; //мьютекс для организации взаимодействия клиентов с сервером
+
+//проверка соединения с сервером (в случае внез)
+void check_connect() {
+	// отправка эхо-сообщения на сервер
+	const char* echoMsg = "";
+	send(Connection, echoMsg, strlen(echoMsg), 0);
+
+	// ожидание ответа от сервера
+	char buffer[10];
+	memset(buffer, 0, sizeof(buffer));
+	int bytesReceived = recv(Connection, buffer, sizeof(buffer), 0);
+
+	// проверка на ошибку при приеме данных
+	if (bytesReceived == SOCKET_ERROR) {
+		cout << "Error: failed to receive data from server." << endl;
+		closesocket(Connection);
+		WSACleanup();
+		exit(0);
+	}
+
+	// проверка на разрыв соединения с сервером
+	if (bytesReceived == 0) {
+		cout << "Error: server disconnected." << endl;
+		closesocket(Connection);
+		WSACleanup();
+		exit(0);
+	}
+}
 
 // принятие сообщения от сервера
 void ClientHandler() {
 	char msg[256];
 	while (true) {
+
+		check_connect();
+
+		Sleep(500);
+
 		if (recv(Connection, msg, sizeof(msg), NULL)) { // получение информации 
-			Sleep(100);
+			Sleep(1000);
 			cout << msg << endl;
 		}
 		else {
 			return;
 		}
-
-
 	}
 }
 
 int main() {
-
+	
 
 
 	WSADATA wsaData; // создаём структуру wsaData
@@ -45,19 +74,10 @@ int main() {
 	addr.sin_port = htons(1111); // Порт, на котором будет слушать сервер
 	addr.sin_family = AF_INET;   // семейство протоколов, для интерент протоколов: AF_INET
 
-	Connection = socket(AF_INET, SOCK_STREAM, NULL);
-
-	//привязка адреса к сокету
-	bind(Connection, (SOCKADDR*)&addr, sizeof(addr));
-	// прослушивание, сколько запросов ожидается
-	listen(Connection, SOMAXCONN);
-
-	hMutex = CreateMutex(NULL, FALSE, NULL);//создание мьютекса
-	HANDLE threads[MAX_CONNECTION]; //инициализуем потоки
-	if (hMutex == NULL)
-		return GetLastError(); //ошибка создания мьютекса
-
-	if (connect(Connection, (SOCKADDR*)&addr, sizeof(addr)) == SOCKET_ERROR){ //проверка на подключение к серверу 
+	Connection = socket(AF_INET, SOCK_STREAM, NULL);//сокет для соединения с сервером
+	SOCKET sListen = socket(AF_INET, SOCK_STREAM, NULL);//создание сокета для прослушки порта
+	
+	if (connect(Connection, (SOCKADDR*)&addr, sizeof(addr)) != 0){ //проверка на подключение к серверу 
 		cout << "Error: failed connect to server.\n";
 		closesocket(Connection);
 		WSACleanup();
@@ -66,24 +86,22 @@ int main() {
 	
 	cout << "Connected!\n"; //подключился	
 
-	/* // уже не надо, так как это делает void ClientHandler, запущенная в новом потоке 
-	char msg[256];
-	recv(Connection, msg, sizeof(msg), NULL);
-	cout << msg << endl;
-	*/
-
 	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, NULL, NULL, NULL);
 
+	//Sleep(1000);
 	char msgl[256];
 	while (true) {
+
+
 
 		cin.getline(msgl, sizeof(msgl));
 		string message(msgl);
 		if (message == "exit")
 			return 0;
-
+		
+		//Sleep(1000);
 		send(Connection, msgl, sizeof(msgl), NULL);
-		Sleep(3);
+		Sleep(1000);
 	}
 	
 	closesocket(Connection);

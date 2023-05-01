@@ -2,6 +2,7 @@
 #include <string>
 #include <thread>
 #include <winsock2.h>
+#include <mutex>
 
 #pragma warning(disable: 4996)
 #pragma comment(lib, "ws2_32.lib") // Для работы с сокетами
@@ -9,17 +10,54 @@
 using namespace std;
 
 HANDLE hMutex;
-
+const int MAX_CONNECTION = 3; //константа для макс количества клиентов
 SOCKET Connections[10]; // массив сокетов 
-int Counter = 0; // иднекс массива(сокета/клиента)
+int Counter = 1; // иднекс массива(сокета/клиента)
 
 // Client 1: отправляет данные 
 // Client 2: получает результат
 
+bool check_connect(int i) {
+	// отправка эхо-сообщения на сервер
+	const char* echoMsg = "";
+	send(Connections[i], echoMsg, strlen(echoMsg), 0);
+
+	// ожидание ответа от сервера
+	char buffer[1024];
+	memset(buffer, 0, sizeof(buffer));
+	int bytesReceived = recv(Connections[i], buffer, sizeof(buffer), 0);
+
+	// проверка на ошибку при приеме данных
+	if (bytesReceived == SOCKET_ERROR || bytesReceived == 0) {
+		cout << "Client: " << i << " disconnect" << endl;
+		closesocket(Connections[i]);
+		--Counter;
+		return 0;
+		//WSACleanup();
+		//exit(0);
+	}
+	return 1;
+
+}
+
 void ClientHandler(int index) {
 	char msg[256];
 	while (true) {
-		if (recv(Connections[index], msg, sizeof(msg), NULL)) { // принимает сообщение клиента
+
+		bool flag = check_connect(index); // проверяем соединение с клиентом
+
+		if (Counter == 0) {
+
+		}
+
+		if (flag && recv(Connections[index], msg, sizeof(msg), NULL)) { // принимает сообщение клиента
+			if (msg == "exit") {
+				CloseHandle(hMutex); //закрытие мьютексов
+				closesocket(Connections[index]);// и прослушивающего сокета
+				WSACleanup(); //освобождение использованных ресурсов
+				return;
+			}
+
 			cout << "from " << index << " : "<< msg  << endl;
 		}
 		else {
@@ -43,10 +81,21 @@ int main() {
 		exit(1);
 	}
 
+	/*
+	wchar_t wpath[1000], wbuf[1000];
+	//wcscpy_s(&wpath[0], 500, L"D:\\ОС\\LW5\\client\\Debug\\client.exe");
+	STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+	for (int i = 1; i <= MAX_CONNECTION; ++i) {
+		memset(&si, 0, sizeof(si));
+		si.cb = sizeof(si);
+		memset(&pi, 0, sizeof(pi));
+		HRESULT hr = CreateProcess(wpath, NULL, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
+	}*/
+
 	SOCKADDR_IN addr; // структура для хранение адреса
 	int sizeofaddr = sizeof(addr); //размер
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1"); // IP-адрес сервера (локал хост)
-	//addr.sin_addr.s_addr = INADDR_ANY;
 	addr.sin_port = htons(1111); // Порт, на котором будет слушать сервер
 	addr.sin_family = AF_INET;   // семейство протоколов, для интерент протоколов: AF_INET
 
@@ -55,39 +104,54 @@ int main() {
 		closesocket(slisten);
 		WSACleanup();
 	}
-	int c = 10; // кол-во клиентов, которые могут подключиться
-	listen(slisten, SOMAXCONN); // прослушивание, сколько запросов ожидается, (остальные получат ошибку)
+
+	//int c = 2; // кол-во клиентов, которые могут подключиться
+	listen(slisten, 2); // прослушивание, сколько запросов ожидается, (остальные получат ошибку)
 
 	cout << "Waiting for client connection..." << endl;
 
 	hMutex = CreateMutex(NULL, FALSE, NULL);//создание мьютекса
-	HANDLE threads[100]; //инициализуем потоки
 
-	SOCKET newConnection;
+	HANDLE threads[MAX_CONNECTION]; //инициализуем потоки
+
+	if (hMutex == NULL)
+		return GetLastError(); //ошибка создания мьютекса
+	
+	int i = 1;
+	cout << "Server interaction with clients:" << endl;
+	//SOCKET newConnection;
 	//newConnection = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr); // 
-	for (int i = 1; i <= c; ++i) {
-		newConnection = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr);
-		if (newConnection == 0)
-			cout << "Error conect with client" << endl;
-		else {
-			cout << "Client " << i << " connected!" << endl;
-			// дальше идёт межсетевое взаимодействие
 
-			string m = "client " + to_string(i) + " is connected";
-			char msg[256] = "Client:  \n";
-			strcpy(msg, m.c_str());
-
-			send(newConnection, msg, sizeof(msg), NULL); // отправка клиенту его номер
-
-			Connections[i] = newConnection;
-			++Counter; 
-			Sleep(3);
-			//CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE) ClientHandler, (LPVOID)(i), NULL, NULL); 
-			threads[i] = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(i), NULL, NULL); // создаём новый поток, в котором будет выполняться функция ClientHandler
+	do {
+		Connections[i] = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr);
+		if (Connections[i] == INVALID_SOCKET) { 
+			cout << "Error connecting to the client:" << endl << WSAGetLastError() << endl; //случай ошибки
+			closesocket(slisten);
+			WSACleanup();
+			return 1;
 		}
-	}
+		
+		cout << "Client " << i << " connected!" << endl;
+		// дальше идёт межсетевое взаимодействие
+		
+		string m = "client " + to_string(i) + " is connected";
+		char msg[256] = "Client:  \n";
+		strcpy(msg, m.c_str());
 
-	WaitForMultipleObjects(c, threads, TRUE, INFINITE); //ожидание заверешения работы всех потоков(клиентов)
+		send(Connections[i], msg, sizeof(msg), NULL); // отправка клиенту его номер
+
+		++Counter; 
+		
+		if (i == MAX_CONNECTION) {
+			cout << "The maximum number of clients is connected!" << endl << "working with new clients is impossible!" << endl;
+		}
+		Sleep(1000);
+		threads[i] = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(i), NULL, NULL); //обработка каждого клиента в отдельном потоке
+		++i;
+		
+	} while (i <= MAX_CONNECTION && Counter != 0);
+
+	WaitForMultipleObjects(MAX_CONNECTION, threads, TRUE, INFINITE); //ожидание заверешения работы всех потоков(клиентов)
 	for (int i = 1; i <= Counter; ++i) {  //закрытие потоков
 		CloseHandle(threads[i]);
 		cout << "The threard " << i << " is closed" << endl;
@@ -98,6 +162,5 @@ int main() {
 	closesocket(slisten);// и прослушивающего сокета
 	WSACleanup(); //освобождение использованных ресурсов
 
-	system("pause");
 	return 0;
 }
