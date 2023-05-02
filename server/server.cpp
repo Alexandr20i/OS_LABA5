@@ -44,8 +44,23 @@ void ClientHandler(int index) {
 	char msg[256];
 	while (true) {
 
-		bool flag = check_connect(index); // проверяем соединение с клиентом
+		//bool flag = check_connect(index); // проверяем соединение с клиентом
+		//bool flag = 1;
 
+		int ds = recv(Connections[index], msg, sizeof(msg), NULL);
+		if (ds) {
+			if (ds == SOCKET_ERROR || ds == 0) {
+				cout << "Client: " << index << " disconnect" << endl;
+				closesocket(Connections[index]);
+				//WSACleanup(); //освобождение использованных ресурсов
+				--Counter;
+				return;
+			}
+			cout << "from " << index << " : " << msg << endl;
+		}
+		else
+			return;
+		/*
 
 		if (flag && recv(Connections[index], msg, sizeof(msg), NULL)) { // принимает сообщение клиента
 			if (msg == "exit") {
@@ -60,6 +75,7 @@ void ClientHandler(int index) {
 		else {
 			return;
 		}
+		*/
 		/*
 		for (int i = 1; i <= Counter; ++i) {
 			if (i == index)
@@ -120,31 +136,33 @@ int main() {
 	//newConnection = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr); // 
 
 	do {
-		
+		//if (i >= MAX_CONNECTION) {}
+		//else {
 		Connections[i] = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr);
-		if (Connections[i] == INVALID_SOCKET) { 
+		if (Connections[i] == INVALID_SOCKET) {
 			cout << "Error connecting to the client:" << endl << WSAGetLastError() << endl; //случай ошибки
 			closesocket(slisten);
 			WSACleanup();
 			return 1;
 		}
-		
+
 		cout << "Client " << i << " connected!" << endl;
 		// дальше идёт межсетевое взаимодействие
-		
+
 		string m = "client " + to_string(i) + " is connected";
 		char msg[256] = "Client:  \n";
 		strcpy(msg, m.c_str());
 
 		send(Connections[i], msg, sizeof(msg), NULL); // отправка клиенту его номер
 
-		++Counter; 
-		
+		++Counter;
+
 		if (i == MAX_CONNECTION) {
 			cout << "The maximum number of clients is connected!" << endl << "working with new clients is impossible!" << endl;
 		}
 		Sleep(1000);
 		threads[i] = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(i), NULL, NULL); //обработка каждого клиента в отдельном потоке
+		//}
 		++i;
 		
 	} while (i <= MAX_CONNECTION && Counter != 0);
