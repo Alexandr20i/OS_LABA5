@@ -46,14 +46,11 @@ void ClientHandler(int index) {
 
 		bool flag = check_connect(index); // проверяем соединение с клиентом
 
-		if (Counter == 0) {
-
-		}
 
 		if (flag && recv(Connections[index], msg, sizeof(msg), NULL)) { // принимает сообщение клиента
 			if (msg == "exit") {
 				CloseHandle(hMutex); //закрытие мьютексов
-				closesocket(Connections[index]);// и прослушивающего сокета
+				//closesocket(Connections[index]);// и прослушивающего сокета
 				WSACleanup(); //освобождение использованных ресурсов
 				return;
 			}
@@ -123,6 +120,7 @@ int main() {
 	//newConnection = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr); // 
 
 	do {
+		
 		Connections[i] = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr);
 		if (Connections[i] == INVALID_SOCKET) { 
 			cout << "Error connecting to the client:" << endl << WSAGetLastError() << endl; //случай ошибки
