@@ -46,20 +46,44 @@ void ClientHandler(int index) {
 
 		//bool flag = check_connect(index); // проверяем соединение с клиентом
 		//bool flag = 1;
-
+		
 		int ds = recv(Connections[index], msg, sizeof(msg), NULL);
 		if (ds) {
 			if (ds == SOCKET_ERROR || ds == 0) {
 				cout << "Client: " << index << " disconnect" << endl;
 				closesocket(Connections[index]);
 				//WSACleanup(); //освобождение использованных ресурсов
+				cout << "Counter: " << Counter << endl;
 				--Counter;
+				cout << "Counter: " << Counter << endl;
+				if (Counter == 1) {
+					WSACleanup(); //освобождение использованных ресурсов
+					exit(0);
+					return;
+				}
 				return;
 			}
 			cout << "from " << index << " : " << msg << endl;
+
 		}
-		else
-			return;
+
+		/*
+		else {
+			if (Counter == 1) {
+				//closesocket(Connections[index]);
+				WSACleanup(); //освобождение использованных ресурсов
+				//--Counter;
+				cout << "ifelse" << endl;
+				exit(0);
+				return;
+			}
+			else {
+				exit(0);
+				cout << "else" << endl;
+			}
+		}*/
+
+
 		/*
 
 		if (flag && recv(Connections[index], msg, sizeof(msg), NULL)) { // принимает сообщение клиента
