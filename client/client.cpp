@@ -10,49 +10,23 @@ using namespace std;
 
 SOCKET Connection;
 
-//проверка соединения с сервером (в случае внез)
-void check_connect() {
-	// отправка эхо-сообщения на сервер
-	const char* echoMsg = "";
-	send(Connection, echoMsg, strlen(echoMsg), 0);
-
-	// ожидание ответа от сервера
-	char buffer[10];
-	memset(buffer, 0, sizeof(buffer));
-	int bytesReceived = recv(Connection, buffer, sizeof(buffer), 0);
-
-	// проверка на ошибку при приеме данных
-	if (bytesReceived == SOCKET_ERROR) {
-		cout << "Error: failed to receive data from server." << endl;
-		closesocket(Connection);
-		WSACleanup();
-		exit(0);
-	}
-
-	// проверка на разрыв соединения с сервером
-	if (bytesReceived == 0) {
-		cout << "Error: server disconnected." << endl;
-		closesocket(Connection);
-		WSACleanup();
-		exit(0);
-	}
-}
-
 // принятие сообщения от сервера
 void ClientHandler() {
 	char msg[256];
 	while (true) {
 
-		check_connect();
+		//check_connect();
 
-		Sleep(500);
-
-		if (recv(Connection, msg, sizeof(msg), NULL)) { // получение информации 
-			Sleep(1000);
+		//Sleep(500);
+		int ds = recv(Connection, msg, sizeof(msg), NULL);
+		if (ds) {
+			if (ds == SOCKET_ERROR || ds == 0) { // получение информации 
+				cout << "Error, failed to receive data from server " << endl;
+				closesocket(Connection);
+				WSACleanup();
+				exit(0);
+			}
 			cout << msg << endl;
-		}
-		else {
-			return;
 		}
 	}
 }
@@ -92,8 +66,6 @@ int main() {
 	char msgl[256];
 	while (true) {
 
-
-
 		cin.getline(msgl, sizeof(msgl));
 		string message(msgl);
 		if (message == "exit")
@@ -101,7 +73,7 @@ int main() {
 		
 		//Sleep(1000);
 		send(Connection, msgl, sizeof(msgl), NULL);
-		Sleep(1000);
+		//Sleep(1000);
 	}
 	
 	closesocket(Connection);

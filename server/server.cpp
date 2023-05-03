@@ -2,60 +2,33 @@
 #include <string>
 #include <thread>
 #include <winsock2.h>
-#include <mutex>
+#include <sstream>
 
 #pragma warning(disable: 4996)
 #pragma comment(lib, "ws2_32.lib") // Для работы с сокетами
 
 using namespace std;
 
-HANDLE hMutex;
-const int MAX_CONNECTION = 3; //константа для макс количества клиентов
+const int MAX_CONNECTION = 2; //константа для макс количества клиентов
 SOCKET Connections[10]; // массив сокетов 
-int Counter = 1; // иднекс массива(сокета/клиента)
+int Counter = 0; // иднекс массива(сокета/клиента)
 
-// Client 1: отправляет данные 
-// Client 2: получает результат
-
-bool check_connect(int i) {
-	// отправка эхо-сообщения на сервер
-	const char* echoMsg = "";
-	send(Connections[i], echoMsg, strlen(echoMsg), 0);
-
-	// ожидание ответа от сервера
-	char buffer[1024];
-	memset(buffer, 0, sizeof(buffer));
-	int bytesReceived = recv(Connections[i], buffer, sizeof(buffer), 0);
-
-	// проверка на ошибку при приеме данных
-	if (bytesReceived == SOCKET_ERROR || bytesReceived == 0) {
-		cout << "Client: " << i << " disconnect" << endl;
-		closesocket(Connections[i]);
-		--Counter;
-		return 0;
-		//WSACleanup();
-		//exit(0);
-	}
-	return 1;
-
-}
 
 void ClientHandler(int index) {
+	std::string s = "Stop! You are not active yet.";
 	char msg[256];
+	strcpy(msg, s.c_str());
 	while (true) {
 
-		//bool flag = check_connect(index); // проверяем соединение с клиентом
-		//bool flag = 1;
-		
 		int ds = recv(Connections[index], msg, sizeof(msg), NULL);
+
 		if (ds) {
 			if (ds == SOCKET_ERROR || ds == 0) {
 				cout << "Client: " << index << " disconnect" << endl;
-				closesocket(Connections[index]);
-				//WSACleanup(); //освобождение использованных ресурсов
-				cout << "Counter: " << Counter << endl;
+				Sleep(500);
+				closesocket(Connections[index]);							
 				--Counter;
-				cout << "Counter: " << Counter << endl;
+				//cout << "Counter: " << Counter << endl;
 				if (Counter == 1) {
 					WSACleanup(); //освобождение использованных ресурсов
 					exit(0);
@@ -63,50 +36,34 @@ void ClientHandler(int index) {
 				}
 				return;
 			}
-			cout << "from " << index << " : " << msg << endl;
-
-		}
-
-		/*
-		else {
-			if (Counter == 1) {
-				//closesocket(Connections[index]);
-				WSACleanup(); //освобождение использованных ресурсов
-				//--Counter;
-				cout << "ifelse" << endl;
-				exit(0);
-				return;
-			}
 			else {
-				exit(0);
-				cout << "else" << endl;
+				cout << "from " << index << " : " << msg << endl;
+				string str(msg);
+				int res;				// результат 
+				stringstream ss(str);
+				char sign;
+				int first_number, second_number;
+				ss >> sign >> first_number >> second_number;
+
+				if (sign == '+') {
+					res = first_number + second_number;					
+				}
+				else if (sign == '-') {
+					res = first_number - second_number;					
+				}
+				else if (sign == '/') {
+					res = first_number / second_number;			
+				}
+				else if (sign == '*') {
+					res = first_number * second_number;
+				}
+				string m = "To " + to_string(index) + " client: " + to_string(res);
+				char msg[sizeof(m)];
+				strcpy_s(msg, m.c_str());							// Преобразование std::string в char[]
+				send(Connections[Counter], msg, sizeof(msg), NULL); // отправка клиенту результат
+				cout << "The result sent to " << index << " client" << endl;
 			}
-		}*/
-
-
-		/*
-
-		if (flag && recv(Connections[index], msg, sizeof(msg), NULL)) { // принимает сообщение клиента
-			if (msg == "exit") {
-				CloseHandle(hMutex); //закрытие мьютексов
-				//closesocket(Connections[index]);// и прослушивающего сокета
-				WSACleanup(); //освобождение использованных ресурсов
-				return;
-			}
-
-			cout << "from " << index << " : "<< msg  << endl;
 		}
-		else {
-			return;
-		}
-		*/
-		/*
-		for (int i = 1; i <= Counter; ++i) {
-			if (i == index)
-				continue;
-			Sleep(10);
-			send(Connections[i], msg, sizeof(msg), NULL); // отправляет клиенту 
-		}*/
 	}
 }
 
@@ -117,18 +74,6 @@ int main() {
 		cout << "Error for inicialization Winsock! " << endl;
 		exit(1);
 	}
-
-	/*
-	wchar_t wpath[1000], wbuf[1000];
-	//wcscpy_s(&wpath[0], 500, L"D:\\ОС\\LW5\\client\\Debug\\client.exe");
-	STARTUPINFO si;
-	PROCESS_INFORMATION pi;
-	for (int i = 1; i <= MAX_CONNECTION; ++i) {
-		memset(&si, 0, sizeof(si));
-		si.cb = sizeof(si);
-		memset(&pi, 0, sizeof(pi));
-		HRESULT hr = CreateProcess(wpath, NULL, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi);
-	}*/
 
 	SOCKADDR_IN addr; // структура для хранение адреса
 	int sizeofaddr = sizeof(addr); //размер
@@ -147,58 +92,59 @@ int main() {
 
 	cout << "Waiting for client connection..." << endl;
 
-	hMutex = CreateMutex(NULL, FALSE, NULL);//создание мьютекса
-
 	HANDLE threads[MAX_CONNECTION]; //инициализуем потоки
 
-	if (hMutex == NULL)
-		return GetLastError(); //ошибка создания мьютекса
-	
-	int i = 1;
-	cout << "Server interaction with clients:" << endl;
-	//SOCKET newConnection;
-	//newConnection = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr); // 
 
 	do {
-		//if (i >= MAX_CONNECTION) {}
-		//else {
-		Connections[i] = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr);
-		if (Connections[i] == INVALID_SOCKET) {
-			cout << "Error connecting to the client:" << endl << WSAGetLastError() << endl; //случай ошибки
-			closesocket(slisten);
-			WSACleanup();
-			return 1;
-		}
-
-		cout << "Client " << i << " connected!" << endl;
-		// дальше идёт межсетевое взаимодействие
-
-		string m = "client " + to_string(i) + " is connected";
-		char msg[256] = "Client:  \n";
-		strcpy(msg, m.c_str());
-
-		send(Connections[i], msg, sizeof(msg), NULL); // отправка клиенту его номер
-
 		++Counter;
+		cout << "Counters: " << Counter << endl;
+		//Connections[Counter] = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr);
+		if (Counter >= MAX_CONNECTION + 1) {
+			
+			//--Counter;
+			Connections[Counter] = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr);
 
-		if (i == MAX_CONNECTION) {
-			cout << "The maximum number of clients is connected!" << endl << "working with new clients is impossible!" << endl;
+			string m = "client " + to_string(Counter) + " is waiting ";
+			char msgd[256] = "Client:  \n";
+			strcpy(msgd, m.c_str());
+
+			send(Connections[Counter], msgd, sizeof(msgd), NULL); // отправка клиенту его номер
+			//while (Counter >= MAX_CONNECTION + 1);
+			//--Counter;
 		}
-		Sleep(1000);
-		threads[i] = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(i), NULL, NULL); //обработка каждого клиента в отдельном потоке
-		//}
-		++i;
-		
-	} while (i <= MAX_CONNECTION && Counter != 0);
+		else{
+			//++Counter;
+			Connections[Counter] = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr);
+			if (Connections[Counter] == INVALID_SOCKET) {
+				cout << "Error connecting to the client:" << endl << WSAGetLastError() << endl; //случай ошибки
+				closesocket(slisten);
+				WSACleanup();
+				return 1;
+			}
 
-	WaitForMultipleObjects(MAX_CONNECTION, threads, TRUE, INFINITE); //ожидание заверешения работы всех потоков(клиентов)
-	for (int i = 1; i <= Counter; ++i) {  //закрытие потоков
-		CloseHandle(threads[i]);
-		cout << "The threard " << i << " is closed" << endl;
-	}
+			cout << "Client " << Counter << " connected!" << endl;
+			// дальше идёт межсетевое взаимодействие
+
+			string m = "client " + to_string(Counter) + " is connected";
+			char msg[256] = "Client:  \n";
+			strcpy(msg, m.c_str());
+
+			send(Connections[Counter], msg, sizeof(msg), NULL); // отправка клиенту его номер
+
+			//++Counter;
+
+			if (Counter == MAX_CONNECTION + 1) {
+				cout << "The maximum number of clients is connected!" << endl << "working with new clients is impossible!" << endl;
+			}
+			Sleep(1000);
+			threads[Counter] = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(Counter), NULL, NULL); //обработка каждого клиента в отдельном потоке
+			//++Counter;
+		}
+		cout << "Counters_after: " << Counter << endl;
+		
+	} while (Counter != 0);
 
 	std::cout << "The server is closed to all streams!" << std::endl;
-	CloseHandle(hMutex); //закрытие мьютексов
 	closesocket(slisten);// и прослушивающего сокета
 	WSACleanup(); //освобождение использованных ресурсов
 
