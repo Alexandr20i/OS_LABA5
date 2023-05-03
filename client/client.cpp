@@ -2,6 +2,7 @@
 #include <winsock2.h>
 #include <mutex>
 #include <string>
+#include <sstream>
 
 using namespace std;
 
@@ -10,15 +11,16 @@ using namespace std;
 
 SOCKET Connection;
 
+
+
+
 // принятие сообщения от сервера
 void ClientHandler() {
 	char msg[256];
 	while (true) {
 
-		//check_connect();
-
-		//Sleep(500);
 		int ds = recv(Connection, msg, sizeof(msg), NULL);
+			
 		if (ds) {
 			if (ds == SOCKET_ERROR || ds == 0) { // получение информации 
 				cout << "Error, failed to receive data from server " << endl;
@@ -64,16 +66,31 @@ int main() {
 
 	//Sleep(1000);
 	char msgl[256];
+	bool flag;
 	while (true) {
 
 		cin.getline(msgl, sizeof(msgl));
+
 		string message(msgl);
 		if (message == "exit")
 			return 0;
-		
-		//Sleep(1000);
-		send(Connection, msgl, sizeof(msgl), NULL);
-		//Sleep(1000);
+
+		string str(msgl);
+		stringstream ss(msgl);
+		char sign;
+		int first_number, second_number;
+		try
+		{
+			flag = ss >> sign >> first_number >> second_number ? 1 : 0;
+		}
+		catch (...)
+		{
+			cout << "Incorrect input" << endl;
+		}
+		if (flag) {
+			send(Connection, msgl, sizeof(msgl), NULL);
+		}
+
 	}
 	
 	closesocket(Connection);
