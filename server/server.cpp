@@ -94,83 +94,7 @@ int main() {
 
 	HANDLE threads[MAX_CONNECTION]; //инициализуем потоки
 
-	for (int i = 1; i < 10; ++i){
 
-		Connections[i] = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr);
-		if (Connections[Counter] == INVALID_SOCKET) {
-			cout << "Error connecting to the client:" << endl << WSAGetLastError() << endl; //случай ошибки
-			closesocket(slisten);
-			WSACleanup();
-			return 0;
-		}
-
-		cout << "Client " << i << " connected!" << endl;
-		// дальше идёт межсетевое взаимодействие
-
-		string m = "client " + to_string(i) + " is connected";
-		char msg[256] = "Client:  \n";
-		strcpy(msg, m.c_str());
-
-		send(Connections[i], msg, sizeof(msg), NULL); // отправка клиенту его номер
-
-		if (Counter == MAX_CONNECTION + 1) {
-			cout << "The maximum number of clients is connected!" << endl << "working with new clients is impossible!" << endl;
-		}
-		Sleep(1000);
-		threads[i] = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(i), NULL, NULL); //обработка каждого клиента в отдельном потоке
-		
-
-
-
-
-
-		if (Counter >= MAX_CONNECTION + 1) {
-
-			//--Counter;
-			Connections[Counter] = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr);
-
-			string m = "client " + to_string(Counter) + " is waiting ";
-			char msgd[256] = "Client:  \n";
-			strcpy(msgd, m.c_str());
-
-			send(Connections[Counter], msgd, sizeof(msgd), NULL); // отправка клиенту его номер
-			//while (Counter >= MAX_CONNECTION + 1);
-			//--Counter;
-		}
-		else {
-			//++Counter;
-			Connections[i] = accept(slisten, (SOCKADDR*)&addr, &sizeofaddr);
-			if (Connections[Counter] == INVALID_SOCKET) {
-				cout << "Error connecting to the client:" << endl << WSAGetLastError() << endl; //случай ошибки
-				closesocket(slisten);
-				WSACleanup();
-				return 1;
-			}
-
-			cout << "Client " << Counter << " connected!" << endl;
-			// дальше идёт межсетевое взаимодействие
-
-			string m = "client " + to_string(Counter) + " is connected";
-			char msg[256] = "Client:  \n";
-			strcpy(msg, m.c_str());
-
-			send(Connections[Counter], msg, sizeof(msg), NULL); // отправка клиенту его номер
-
-			//++Counter;
-
-			if (Counter == MAX_CONNECTION + 1) {
-				cout << "The maximum number of clients is connected!" << endl << "working with new clients is impossible!" << endl;
-			}
-			Sleep(1000);
-			threads[Counter] = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, (LPVOID)(Counter), NULL, NULL); //обработка каждого клиента в отдельном потоке
-			//++Counter;
-		}
-		//cout << "Counters_after: " << Counter << endl;
-
-	} while (Counter != 0);
-
-
-	/*
 	do {
 		++Counter;
 		cout << "Counters: " << Counter << endl;
@@ -219,7 +143,6 @@ int main() {
 		cout << "Counters_after: " << Counter << endl;
 		
 	} while (Counter != 0);
-	*/
 
 	std::cout << "The server is closed to all streams!" << std::endl;
 	closesocket(slisten);// и прослушивающего сокета
