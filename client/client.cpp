@@ -82,6 +82,13 @@ int main() {
 		try
 		{
 			flag = ss >> sign >> first_number >> second_number ? 1 : 0;
+			if (sign == '+' || sign == '-' || sign == '/' || sign == '*') {
+				flag = 1;
+			}
+			else {
+				flag = 0;
+				cout << "Incorrect input" << endl;
+			}
 		}
 		catch (...)
 		{
